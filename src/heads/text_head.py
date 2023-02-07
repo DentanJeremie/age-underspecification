@@ -14,6 +14,7 @@ DEFAULT_LOSS_FN = nn.CrossEntropyLoss()
 DEFAULT_OPTIMIZER = torch.optim.Adam
 DEFAULT_VERBOSE = 40
 DEFAULT_MAX_EPOCH = 20
+DEFAULT_START_FROM_SCRATCH = False
 
 class TextHead(object):
 
@@ -24,7 +25,8 @@ class TextHead(object):
         loss_fn: torch.nn.modules.loss = DEFAULT_LOSS_FN,
         force_training: bool = False,
         verbose: int = DEFAULT_VERBOSE,
-        max_epoch: int = DEFAULT_MAX_EPOCH
+        max_epoch: int = DEFAULT_MAX_EPOCH,
+        start_from_scratch: bool = DEFAULT_START_FROM_SCRATCH,
     ) -> None:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = model.to(self.device)
@@ -35,7 +37,12 @@ class TextHead(object):
         self.verbose = verbose
         self.optimizer = optimizer(self.model.parameters(), lr=1e-3)
         self.max_epoch = max_epoch
+        self.start_from_scratch = start_from_scratch
         self.do_training = True 
+
+        if self.start_from_scratch:
+            logger.info('Not checking disk since start_from_scratch==True')
+            return
 
         logger.info('Checking if there exist a model that is already trained')
         possible_trained_model_file = project.get_lastest_text_head_model_file()

@@ -23,7 +23,6 @@ DEFAULT_DATA_AUGMENTATION_HAIR = DEFAULT_DATA_AUGMENTATION_AGE * AGE_HAIR_SIZE_R
 DEFAULT_NOISE_SIZE = 0.1
 DEFAULT_BATCH_SIZE = 32
 DEFAULT_VAL_PROP = 0.2
-DEFAULT_ROLL_COLOR_FOR_TEXT = True
 LABEL_OFFSET_HAIR_TEXT = 2
 
 
@@ -37,11 +36,16 @@ class AddNoise(object):
         return tensor
 
 class RollColors(object):
-    def __init__(self):
-        self.roll_number = np.random.randint(0,3)
-    
     def __call__(self, tensor):
-        return torch.roll(tensor, shifts=self.roll_number, dims=1)
+        roll_number = np.random.randint(0,3)
+        return torch.roll(tensor, shifts=roll_number, dims=1)
+
+
+class InvertColors(object):
+    def __call__(self, tensor):
+        if np.random.randint(2) == 1:
+            return 1 - tensor
+        return tensor
 
 
 class ImageDataset(Dataset):
@@ -52,11 +56,13 @@ class ImageDataset(Dataset):
             label_offset: int = 0,
             noise_size:float = 0,
             roll_colors: bool = False,
+            invert_colors: bool = False,
         ):
         """
         :param label_offset: An offset that will be added to all labels.
         :param noise_size: The size of the noise to be added to each images.
-        :param roll_colors: A boolean indicating whether or not to randomly roll the colors.
+        :param roll_colors: A boolean indicating whether or not to roll the colors.
+        :param invert_colors: A boolean indicating whether or not to invert the colors.
         """
         assert type in DATASET_TYPES, f'The dataset type must be in {DATASET_TYPES}'
 
@@ -81,8 +87,9 @@ class ImageDataset(Dataset):
         self.label_offset = label_offset
         self.noise_size = noise_size
         self.roll_colors = roll_colors
+        self.invert_colors = invert_colors
 
-        logger.info(f"Builded dataset: len={self.len}, type={type}, labeled={labeled}, label_offset={label_offset}, noise_size={noise_size}, roll_colors={roll_colors}")
+        logger.info(f"Builded dataset: len={self.len}, type={type}, labeled={labeled}, label_offset={label_offset}, noise_size={noise_size}, roll_colors={roll_colors}, inver_colors={invert_colors}")
 
     def __len__(self):
         return self.len
@@ -100,6 +107,10 @@ class ImageDataset(Dataset):
             transforms_to_apply.append(
                 RollColors()
             )
+        if self.invert_colors:
+            transforms_to_apply.append(
+                InvertColors()
+            )
         final_transformation = transforms.Compose(transforms_to_apply)
         return final_transformation(image.float()), label
 
@@ -111,6 +122,7 @@ def get_dataset(
         label_offset: int = 0,
         noise_size: float = 0.0,
         roll_colors: bool = False,
+        invert_colors: bool = False,
     ) -> t.Tuple[torch.torch.utils.data.dataset.Dataset, torch.utils.data.dataset.Dataset]:
     """Returns two datasets: one for training and one for validation.
     
@@ -119,13 +131,21 @@ def get_dataset(
     :param val_prop: The proportion of images to use for validation
     :param label_offset: The offset to be added to the labels
     :param noise_size: The size of the noise to be added to each images.
-    :param roll_colors: A boolean indicating whether or not to randomly roll the colors.
+    :param roll_colors: A boolean indicating whether or not to roll the colors.
+    :param invert_colors: A boolean indicating whether or not to invert the colors.
     :returns: `train_dataset, test_dataset` Each of them are `torch.utils.data.Dataset`
     that return tuples of `tensor, int` representing an image and its label.
     """
     assert type in DATASET_TYPES, f'The dataset type must be in {DATASET_TYPES}'
 
-    dataset = ImageDataset(type=type, labeled=labeled, label_offset=label_offset, noise_size=noise_size, roll_colors=roll_colors)
+    dataset = ImageDataset(
+        type=type,
+        labeled=labeled,
+        label_offset=label_offset,
+        noise_size=noise_size,
+        roll_colors=roll_colors,
+        invert_colors=invert_colors
+    )
     train_dataset, test_dataset = torch.utils.data.random_split(
         dataset, lengths=[1-val_prop, val_prop]
     )
@@ -139,6 +159,7 @@ def get_dataloader(
         label_offset: int = 0,
         noise_size: float = 0.0,
         roll_colors: bool = False,
+        invert_colors: bool = False,
         batch_size: int = DEFAULT_BATCH_SIZE,
     ) -> t.Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
     """Returns two dataloaders: one for training and one for validation.
@@ -148,12 +169,21 @@ def get_dataloader(
     :param val_prop: The proportion of images to use for validation
     :param label_offset: The offset to be added to the labels
     :param noise_size: The size of the noise to be added to each images.
-    :param roll_colors: A boolean indicating whether or not to randomly roll the colors.
+    :param roll_colors: A boolean indicating whether or not to roll the colors.
+    :param invert_colors: A boolean indicating whether or not to invert the colors.
     :param batch_size: The size of the batches
     :returns: `train_dataloader, test_dataloader` Each of them are `torch.utils.data.DataLoader`
     that return tuples of `tensor, int` representing an image and its label.
     """
-    train_dataset, test_dataset = get_dataset(type, labeled, val_prop, label_offset, noise_size, roll_colors)
+    train_dataset, test_dataset = get_dataset(
+        type=type,
+        labeled=labeled,
+        val_prop=val_prop,
+        label_offset=label_offset,
+        noise_size=noise_size,
+        roll_colors=roll_colors,
+        invert_colors=invert_colors,
+    )
     logger.info(f'Build dataloader in with batch_size={batch_size}')
     return (
         torch.utils.data.DataLoader(train_dataset, batch_size = batch_size),
@@ -164,7 +194,6 @@ def get_dataloader_text(
     augmentation_factor_hair: int = DEFAULT_DATA_AUGMENTATION_HAIR,
     augmentation_factor_age: int = DEFAULT_DATA_AUGMENTATION_AGE,
     noise_size: float = DEFAULT_NOISE_SIZE,
-    roll_color: bool = DEFAULT_ROLL_COLOR_FOR_TEXT,
     batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> t.Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
     """Returns `train_loader_text` and `test_loader_text`, two dataloaders that contain images 
@@ -174,7 +203,6 @@ def get_dataloader_text(
     noisy images of human_hair
     :param augmentation_factor_age: We'll add `(augmentation_factor_age - 1) * len(human_age_labeled)``
     noisy images of human_age
-    :param roll_colors: A boolean indicating whether or not to randomly roll the colors.
     :param batch_size: The size of the batches for the dataloader
     :param noise_size: The max size of the noise to add
     """
@@ -184,24 +212,42 @@ def get_dataloader_text(
     # Data augmentation for hairs
     # We add an offset in the labels of the hairs of `LABEL_OFFSET_HAIR_TEXT`
     logger.info(f'Starting data augmentatino of hairs of factor {augmentation_factor_hair}')
-    for noise, val_prop, roll in zip(
+    for noise, val_prop, roll, invert in zip(
         [0.0] + (augmentation_factor_hair - 1)*[noise_size],
         [DEFAULT_VAL_PROP] + (augmentation_factor_hair - 1)*[0.0],
-        [False] + (augmentation_factor_hair - 1)*[roll_color],
+        [False] + (augmentation_factor_hair - 1)*[True],
+        [False] + (augmentation_factor_hair - 1)*[True],
     ):
-        train, test = get_dataset(HAIR_TYPE, True, val_prop, label_offset=LABEL_OFFSET_HAIR_TEXT, noise_size=noise, roll_colors=roll)
+        train, test = get_dataset(
+            type=HAIR_TYPE,
+            labeled=True,
+            val_prop=val_prop,
+            label_offset=LABEL_OFFSET_HAIR_TEXT,
+            noise_size=noise,
+            roll_colors=roll,
+            invert_colors=invert,
+        )
         list_train_dataset.append(train)
         for _ in range(AGE_HAIR_SIZE_RATIO):
             list_test_dataset.append(test)
 
     # Data augmentation for ages
     logger.info(f'Starting data augmentatino of ages of factor {augmentation_factor_age}')
-    for noise, val_prop, roll in zip(
-        [0.0] + (augmentation_factor_hair - 1)*[noise_size],
+    for noise, val_prop, roll, invert in zip(
+        [0.0] + (augmentation_factor_age - 1)*[noise_size],
         [DEFAULT_VAL_PROP] + (augmentation_factor_age - 1)*[0.0],
-        [False] + (augmentation_factor_hair - 1)*[roll_color],
+        [False] + (augmentation_factor_age - 1)*[True],
+        [False] + (augmentation_factor_age - 1)*[True],
     ):
-        train, test = get_dataset(AGE_TYPE, True, val_prop, label_offset=0, noise_size=noise, roll_colors=roll)
+        train, test = get_dataset(
+            type=AGE_TYPE,
+            labeled=True,
+            val_prop=val_prop,
+            label_offset=0,
+            noise_size=noise,
+            roll_colors=roll,
+            invert_colors=invert,
+        )
         list_train_dataset.append(train)
         list_test_dataset.append(test)
 
