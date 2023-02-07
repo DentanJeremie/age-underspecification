@@ -153,6 +153,33 @@ class CustomizedPath():
     def human_age_unlabeled_folder(self):
         return self.human_age / 'humans' / 'unlabeled'
 
+# ------------------ TEXT HEAD ------------------
+
+    @property
+    def text_head_models(self):
+        return self.mkdir_if_not_exists(self.output / 'text_head_models')
+
+    def get_new_text_head_model_file(self) -> Path:
+        """Get a new text head model file.
+
+        :returns: A Path to the file, without creating the file.
+        """
+        return self.text_head_models / f'text_head_model_{datetime.datetime.now().strftime("_%Y_%m%d__%H_%M_%S")}.pt'
+
+    def get_lastest_text_head_model_file(self): 
+        file_suffix = 'text_head_model'           
+        files = sorted([
+            str(path)
+            for path in self.text_head_models.iterdir()
+            if path.is_file()
+            and str(path)[-len(file_suffix):] == file_suffix 
+        ])
+
+        if len(files) == 0:
+            return None
+            
+        return Path(files[-1])
+
 # ------------------ PREDICTIONS ------------------
 
     @property

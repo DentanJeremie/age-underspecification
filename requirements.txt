@@ -2,3 +2,5 @@ torch
 torchvision
 pandas
 numpy
+einops
+tqdm

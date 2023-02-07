@@ -27,3 +27,4 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings('ignore', message=r'This implementation of AdamW*')
 warnings.filterwarnings('ignore', message=r'nn.glob.global_sort_pool')
+warnings.filterwarnings('ignore', message=r'Length of split at index')
