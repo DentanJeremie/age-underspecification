@@ -1,23 +1,32 @@
 import time
 import typing as t
 
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 from tqdm import tqdm
 
 from src.utils.logging import logger
-from src.utils.datasets import ImageDataset, get_dataloader_text, AGE_TYPE
+from src.utils.datasets import get_dataset, ImageDataset
 from src.utils.pathtools import project
-from src.heads.models import TextModel
+from src.classifier.models import AgeModel
+from src.classifier.text_extractor import TextExtractor
 
-DEFAULT_MODEL = TextModel()
+DEFAULT_MODEL = AgeModel()
 DEFAULT_LOSS_FN = nn.CrossEntropyLoss()
 DEFAULT_OPTIMIZER = torch.optim.Adam
 DEFAULT_VERBOSE = 40
 DEFAULT_MAX_EPOCH = 20
 DEFAULT_START_FROM_SCRATCH = False
+DEFAULT_BATCH_SIZE = 32
+DEFAULT_NOISE_SIZE = 0.1
+DEFAULT_AUGMENTATION = 3
 
-class TextHead(object):
+BATCH_SIZE_FOR_PREDICTION = 128
+
+
+class AgeClassifier(object):
 
     def __init__(
         self,
@@ -28,6 +37,9 @@ class TextHead(object):
         verbose: int = DEFAULT_VERBOSE,
         max_epoch: int = DEFAULT_MAX_EPOCH,
         start_from_scratch: bool = DEFAULT_START_FROM_SCRATCH,
+        batch_size:int = DEFAULT_BATCH_SIZE,
+        noise_size:float = DEFAULT_NOISE_SIZE,
+        augmentation_factor:int = DEFAULT_AUGMENTATION,
     ) -> None:
 
         # Model, device
@@ -37,7 +49,11 @@ class TextHead(object):
         self.optimizer = optimizer(self.model.parameters(), lr=1e-3)
 
         # Data
-        self.train_loader, self.test_loader = get_dataloader_text()
+        self.train_loader, self.test_loader = self.get_age_dataloader(
+            noise_size=noise_size,
+            augmentation_factor=augmentation_factor,
+            batch_size=batch_size,
+        )
         self.size_train = len(self.train_loader.dataset)
         self.size_test = len(self.test_loader.dataset)
         
@@ -53,7 +69,7 @@ class TextHead(object):
             return
 
         logger.info('Checking if there exist a model that is already trained')
-        possible_trained_model_file = project.get_lastest_text_head_model_file()
+        possible_trained_model_file = project.get_lastest_classifier_model_file()
         if possible_trained_model_file is not None:
             logger.info(f'Found a trained model at {project.as_relative(possible_trained_model_file)}')
             try:
@@ -68,6 +84,46 @@ class TextHead(object):
                 logger.info('Unable to load the model from the disk, preparing for training')
         else:
             logger.info('No trained model found, preparing for training')
+
+# ------------------ DATALOADER ------------------
+
+    def get_age_dataloader(
+        self,
+        noise_size: float,
+        augmentation_factor:int,
+        batch_size:int,
+    ):
+        logger.info(f'Building dataloader, augmentation_factor={augmentation_factor}, noise_size={noise_size}, batch_size={batch_size}')
+        list_train_dataset = list()
+        list_test_dataset = list()
+
+        logger.info(f'Getting text masks for labeled images')
+        TextExtractor(labeled=True).frame_centers
+
+        for noise, use_for_test in zip(
+            [0.0] + (augmentation_factor - 1)*[noise_size],
+            [True] + (augmentation_factor - 1)*[False],
+        ):
+            train, test = get_dataset(
+                labeled=True,
+                noise_size=noise,
+                mask_text=True,
+            )
+            list_train_dataset.append(train)
+            if use_for_test:
+                list_test_dataset.append(test)
+
+        # Concatenating
+        logger.info(f'Concatenating {len(list_train_dataset)} train datasets and {len(list_test_dataset)} test datasets')
+        full_train_dataset = torch.utils.data.ConcatDataset(list_train_dataset)
+        full_test_dataset = torch.utils.data.ConcatDataset(list_test_dataset)
+
+        logger.info(f'Building dataloaders with batch_size={batch_size}')
+        full_train_dataloader = torch.utils.data.DataLoader(full_train_dataset, batch_size=batch_size, shuffle=True)
+        full_test_dataloader = torch.utils.data.DataLoader(full_test_dataset, batch_size=batch_size, shuffle=True)
+
+        return full_train_dataloader, full_test_dataloader
+
 
 # ------------------ TRAIN / TEST UTILS ------------------
 
@@ -93,12 +149,12 @@ class TextHead(object):
                 loss, current = loss.item(), batch * len(x)
                 logger.info(f"loss: {loss:>7f}  [{current:>5d}/{self.size_train:>5d}]")
 
-    def test(self) -> float:
+    def test(self, make_prediction = False, note='') -> float:
         """Performs the testing, using self.test_loader as loader.
 
         :returns: The proportion of correctly classified sample in the test set.
         """
-        logger.info('Starting evaluation on train set')
+        logger.info('Starting evaluation on test set')
         size = self.size_test
         num_batches = len(self.test_loader)
         self.model.eval()
@@ -114,13 +170,16 @@ class TextHead(object):
         logger.info(f"Test performances: Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f}")
         self.get_predictions_on_test_images(trained=False)
 
+        if make_prediction:
+            self.make_prediction(trained=False, note=note)
+
         return correct
 
     def save_model(self):
         """Saves the model to disk.
         """
         logger.info(f'Saving model to disk...')
-        path = project.get_new_text_head_model_file()
+        path = project.get_new_classifier_model_file()
         torch.save(self.model.state_dict(), path)
         logger.info(f'Succesfully saved best model at {project.as_relative(path)}')
 
@@ -141,7 +200,7 @@ class TextHead(object):
         for epoch in range(1, self.max_epoch + 1):
             logger.info(f"Epoch {epoch}")
             self.train_one_epoch()
-            prop_correct = self.test()
+            prop_correct = self.test(make_prediction = True, note=f'epoch={epoch}')
 
             if prop_correct > best_evaluation_acc:
                 logger.info(f'Improvement from previous epoch {best_evaluation_acc:.2f} -> {prop_correct:.2f}, continuing training')
@@ -172,7 +231,10 @@ class TextHead(object):
     def get_predictions_on_test_images(self, num_images: int = 16, trained = True) -> t.List[int]:
         """Returns a list of the predictions of the trained model on unlabelled age dataset.
         """
-        dataset = ImageDataset(AGE_TYPE, labeled=False)
+        logger.info(f'Getting text masks for unlabeled images')
+        TextExtractor(labeled=False).frame_centers
+
+        dataset = ImageDataset(labeled=False, mask_text=True)
         result = list()
         model = self.trained_model if trained else self.model
         model = model.to(self.device)
@@ -186,13 +248,37 @@ class TextHead(object):
             if num_images == 0:
                 break
 
-        logger.info('It seems the true values should be [1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, ...]')
-        logger.info('And that the text values shoudl be [1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, ...]')
-        logger.info(f'Yet the result as predictied is:   {result}')
+        logger.info(f'The text values shoudl be [1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, ...]')
+        logger.info(f'The true values should be [1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, ...]')
+        logger.info(f'Yet the prediction is     {result}')
         return result
 
+    def make_prediction(self, trained = True, note:str=''):
+        """Makes the prediction with the current model."""
+        logger.info(f'')
+        logger.info(f'Getting text masks for unlabeled images')
+        TextExtractor(labeled=False).frame_centers
+
+        dataset = ImageDataset(labeled=False, mask_text=True)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE_FOR_PREDICTION, shuffle=False)
+        result = list()
+        model = self.trained_model if trained else self.model
+        model = model.to(self.device)
+        logger.info('Computing prediction on the full submission set...')
+        for tensor, _ in tqdm(dataloader):
+            tensor = tensor.to(self.device)
+            result.extend(
+                model(tensor).argmax(1).cpu().tolist()
+            )
+
+        # Saving
+        path = project.get_new_prediction_file(note=note)
+        pd.DataFrame(np.array(result), columns=["labels"]).to_csv(path, index_label="index")
+        logger.info(f'Successfully stored prediction result at {project.as_relative(path)}')
+
+
 def main():
-    TextHead().trained_model
+    AgeClassifier().trained_model
 
 if __name__ == '__main__':
     main()

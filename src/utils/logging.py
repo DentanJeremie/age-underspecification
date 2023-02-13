@@ -19,7 +19,7 @@ logger.addHandler(sum_fileHandler)
 
 consoleHandler = logging.StreamHandler(sys.stdout)
 consoleHandler.setFormatter(logFormatter)
-consoleHandler.setLevel(logging.DEBUG)
+consoleHandler.setLevel(logging.INFO)
 logger.addHandler(consoleHandler)
 
 # Silent unuseful log

@@ -4,3 +4,8 @@ pandas
 numpy
 einops
 tqdm
+opencv-python
+imageio
+p_tqdm
+matplotlib
+scipy

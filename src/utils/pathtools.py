@@ -153,31 +153,43 @@ class CustomizedPath():
     def human_age_unlabeled_folder(self):
         return self.human_age / 'humans' / 'unlabeled'
 
-# ------------------ TEXT EXTRACTOR ------------------
+# ------------------ CACHING ------------------
 
     @property
     def text_frames_dir(self):
         return self.mkdir_if_not_exists(self.output / 'text_frames')
+
+    @property
+    def classifier_models(self):
+        return self.mkdir_if_not_exists(self.output / 'classifier_models')
+
+    def get_new_classifier_model_file(self) -> Path:
+        """Get a new classifier model file.
+        :returns: A Path to the file, without creating the file.
+        """
+        return self.classifier_models / f'classifier_model_{datetime.datetime.now().strftime("_%Y_%m%d__%H_%M_%S")}.pt'
+
+    def get_lastest_classifier_model_file(self): 
+        file_suffix = 'classifier_model'           
+        files = sorted([
+            str(path)
+            for path in self.classifier_models.iterdir()
+            if path.is_file()
+            and str(path)[-len(file_suffix):] == file_suffix 
+        ])
+
+        if len(files) == 0:
+            return None
+            
+        return Path(files[-1])
     
 # ------------------ PREDICTIONS ------------------
 
     @property
-    def hair_prediction(self):
-        return self.mkdir_if_not_exists(self.output / 'hair_prediction')
-
-    @property
     def age_prediction(self):
         return self.mkdir_if_not_exists(self.output / 'age_prediction')
-    
-    def get_new_hair_prediction_file(self, note: str = '') -> Path:
-        """Get a new prediction file.
 
-        :param note: A note that will be inserted in the name of the file.
-        :returns: A Path to the file, without creating the file.
-        """
-        return self.hair_prediction / f'hair_prediction_{datetime.datetime.now().strftime("_%Y_%m%d__%H_%M_%S")}_{note}.csv'
-
-    def get_new_age_prediction_file(self, note: str = '') -> Path:
+    def get_new_prediction_file(self, note: str = '') -> Path:
         """Get a new prediction file.
 
         :param note: A note that will be inserted in the name of the file.
