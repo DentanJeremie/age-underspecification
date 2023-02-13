@@ -177,5 +177,5 @@ class TextExtractor():
 
 
 if __name__ == '__main__':
-    te = TextExtractor()
-    te.plot_frame(labeled = False, image_index=1123)
+    te = TextExtractor(labeled = False)
+    te.plot_frame(image_index=9)
