@@ -298,7 +298,7 @@ class AgeClassifier(object):
             epoch_count += 1
             logger.info(f"Epoch {epoch}")
             self.train_one_epoch()
-            prop_correct = self.test(make_prediction = False, note=f'epoch={epoch}')
+            prop_correct = self.test(make_prediction = True, note=f'epoch={epoch}')
 
         # Training the head + last conv only
         logger.info(f'Freezing all weights except head + last conv layer, preparing for {LAST_CONV_EPOCH} epochs')
@@ -310,7 +310,7 @@ class AgeClassifier(object):
             epoch_count += 1
             logger.info(f"Epoch {epoch}")
             self.train_one_epoch()
-            prop_correct = self.test(make_prediction = False, note=f'epoch={epoch}')
+            prop_correct = self.test(make_prediction = True, note=f'epoch={epoch}')
 
         # Training the head + 2 last conv only
         logger.info(f'Freezing all weights except head + 2 last conv layer, preparing for {TW0_LAST_CONV_EPOCH} epochs')
@@ -322,7 +322,7 @@ class AgeClassifier(object):
             epoch_count += 1
             logger.info(f"Epoch {epoch}")
             self.train_one_epoch()
-            prop_correct = self.test(make_prediction = False, note=f'epoch={epoch}')
+            prop_correct = self.test(make_prediction = True, note=f'epoch={epoch}')
 
         # Training the full model
         logger.info(f'Unfreezing all parameters, preparing for {FULL_EPOCH} epochs (with pathience for early stopping)')
@@ -340,7 +340,7 @@ class AgeClassifier(object):
             epoch_count += 1
             logger.info(f"Epoch {epoch}")
             self.train_one_epoch()
-            prop_correct = self.test(make_prediction = False, note=f'epoch={epoch}')
+            prop_correct = self.test(make_prediction = True, note=f'epoch={epoch}')
 
             if prop_correct > self.best_evaluation_acc:
                 logger.info(f'Improvement from best epoch {self.best_evaluation_acc:.2f} -> {prop_correct:.2f}, continuing training')
