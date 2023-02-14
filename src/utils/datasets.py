@@ -11,11 +11,12 @@ from src.utils.logging import logger
 from src.classifier.text_extractor import TextExtractor
 
 NATURAL_IMAGE_TRANSFORM = transforms.Normalize(           
-    mean=[0.485, 0.456, 0.406],      
-    std=[0.229, 0.224, 0.225]   
+    mean=[0.5045, 0.4218, 0.3822],      
+    std=[0.2680, 0.2473, 0.2425],   
 )
 
 # Consitency in the train/test over models
+ENCODING_RANGE = 255
 VAL_PROP = 0.2
 SPLIT_SEED = 42
 
@@ -67,16 +68,16 @@ class ImageDataset(Dataset):
         if self.mask_text:
             self.text_extractor = TextExtractor(labeled=self.labeled)
 
-        logger.info(f"Builded dataset: len={self.len}, labeled={labeled}, noise_size={noise_size}, masekd={mask_text}")
+        logger.info(f"Builded dataset: len={self.len}, labeled={labeled}, noise_size={noise_size}, mask_text={mask_text}")
 
     def __len__(self):
-        return self.len
+        return self.len, 10
 
     def __getitem__(self, idx):
         img_path = self.img_dir / f"{idx}.jpg"
         image = read_image(str(img_path))
         label = self.labels.loc[idx, "labels"]
-        transforms_to_apply = [NATURAL_IMAGE_TRANSFORM]
+        transforms_to_apply = [] # [NATURAL_IMAGE_TRANSFORM]
         if self.noise_size != 0.0:
             transforms_to_apply.append(
                 AddNoise(self.noise_size)
@@ -86,7 +87,7 @@ class ImageDataset(Dataset):
                 MaskText(self.text_extractor.get_mask(image_index=idx))
             )
         final_transformation = transforms.Compose(transforms_to_apply)
-        return final_transformation(image.float()), label
+        return final_transformation(image.float()/ENCODING_RANGE), label
 
 
 # ------------------ DATASET/DATALOADER BUILD ------------------

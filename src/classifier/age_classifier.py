@@ -25,6 +25,19 @@ DEFAULT_AUGMENTATION = 3
 
 BATCH_SIZE_FOR_PREDICTION = 32
 
+TRUE_TEXT = np.array([
+    1,0,0,1,1,0,1,0,0,1,1,1,1,0,1,0,
+    0,1,1,1,1,1,0,1,0,1,1,0,0,1,0,0,
+    0,0,1,0,1,1,1,0,0,1,1,1,0,1,1,0,
+    1,0,1,0,0,1,0,1,1,0,1,1,0,1,1,1,
+])
+TRUE_AGE = np.array([
+    1,0,1,1,0,0,0,1,0,1,1,1,0,0,1,1,
+    0,0,1,0,0,0,1,1,0,1,1,1,1,0,1,1,
+    1,0,0,0,0,0,1,0,1,1,1,0,0,1,0,1,
+    1,1,0,0,0,0,0,0,0,1,1,1,0,0,1,1,
+])
+
 
 class AgeClassifier(object):
 
@@ -228,13 +241,13 @@ class AgeClassifier(object):
 
 # ------------------ RESULT ------------------
 
-    def get_predictions_on_test_images(self, num_images: int = 16, trained = True) -> t.List[int]:
+    def get_predictions_on_test_images(self, num_images: int = 64, trained = True) -> t.List[int]:
         """Returns a list of the predictions of the trained model on unlabelled age dataset.
         """
         logger.info(f'Getting text masks for unlabeled images')
         TextExtractor(labeled=False).frame_centers
 
-        dataset = ImageDataset(labeled=False, mask_text=True)
+        dataset = ImageDataset(labeled=False, mask_text=False)
         result = list()
         model = self.trained_model if trained else self.model
         model = model.to(self.device)
@@ -248,9 +261,15 @@ class AgeClassifier(object):
             if num_images == 0:
                 break
 
+        result_arr = np.array(result[:len(TRUE_TEXT)])
+        text_acc = np.sum(result_arr == TRUE_TEXT) / len(TRUE_TEXT)
+        age_acc = np.sum(result_arr == TRUE_AGE) / len(TRUE_TEXT)
+
         logger.info(f'The text values shoudl be [1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, ...]')
         logger.info(f'The true values should be [1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, ...]')
-        logger.info(f'Yet the prediction is     {result}')
+        logger.info(f'Yet the prediction is     {result[:16]}')
+        logger.info(f'Accuracy to predict the text: {text_acc}')
+        logger.info(f'Accuracy to predict the age : {age_acc}')
         return result
 
     def make_prediction(self, trained = True, note:str=''):
@@ -259,7 +278,7 @@ class AgeClassifier(object):
         logger.info(f'Getting text masks for unlabeled images')
         TextExtractor(labeled=False).frame_centers
 
-        dataset = ImageDataset(labeled=False, mask_text=True)
+        dataset = ImageDataset(labeled=False, mask_text=False)
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE_FOR_PREDICTION, shuffle=False)
         result = list()
         model = self.trained_model if trained else self.model

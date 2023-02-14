@@ -1,3 +1,4 @@
+import datetime
 import os
 import pickle
 import io
@@ -17,12 +18,13 @@ from src.utils.logging import logger
 
 LABELED_FILE_PATH = project.text_frames_dir / 'labeled.obj'
 UNLABELED_FILE_PATH = project.text_frames_dir / 'unlabeled.obj'
+OUTPUT_IMAGES_FRAMED = project.text_frames_dir / 'frames'
 
 COMPRESSION_QUALITY = 95
 FORMAT = 'jpg'
 SMOOTHING_SIZE = 20
 THRESHOLD = 0.7
-MASK_WIDTH = 110
+MASK_WIDTH = 140
 MASK_HEIGHT = 40
 ORIGINAL_IMAGES_HEIGHT = 218
 ORIGINAL_IMAGES_WIDTH = 178
@@ -156,7 +158,7 @@ class TextExtractor():
         return mask 
 
     def plot_frame(self, image_index=0):
-
+        """Plots a frame to check everything is correct."""
         # Loading image
         img_original = self.dataset[image_index]
 
@@ -175,7 +177,40 @@ class TextExtractor():
         plt.imshow(img_original)
         plt.show()
 
+    def save_some_frames(self, num_images=100):
+        choices = np.random.choice(range(len(self.dataset)), num_images, replace=False)
+
+        output_dir = OUTPUT_IMAGES_FRAMED / f'{datetime.datetime.now().strftime("_%Y_%m%d__%H_%M_%S")}'
+        output_dir = project.mkdir_if_not_exists(output_dir)
+
+        logger.info(f'Generating {num_images} framed images in {project.as_relative(output_dir)}')
+        for image_index in tqdm(choices):
+            # Loading image
+            img_original = self.dataset[image_index]
+
+            # Framing
+            idx_center, idy_center = self.frame_centers[image_index]
+
+            img_original[idx_center-2:idx_center+3, idy_center-2:idy_center+3, 0] = 255
+            img_original[idx_center-2:idx_center+3, idy_center-2:idy_center+3, 1] = 0
+            img_original[idx_center-2:idx_center+3, idy_center-2:idy_center+3, 2] = 0
+
+            start_point = (idy_center - MASK_WIDTH//2, idx_center - MASK_HEIGHT//2)
+            end_point = (idy_center + MASK_WIDTH//2, idx_center + MASK_HEIGHT//2)
+
+            cv2.rectangle(img_original, start_point, end_point, color=(255, 0, 0), thickness=3)
+
+            # Saving
+            imageio.imwrite(
+                output_dir / f'{image_index}.jpg',
+                np.asarray(img_original, np.uint8),
+                format='jpg',
+                quality = COMPRESSION_QUALITY,
+            )
+
 
 if __name__ == '__main__':
     te = TextExtractor(labeled = False)
-    te.plot_frame(image_index=9)
+    te.save_some_frames()
+    te = TextExtractor(labeled = True)
+    te.save_some_frames()
