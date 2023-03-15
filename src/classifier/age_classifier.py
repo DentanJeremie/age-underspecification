@@ -38,6 +38,8 @@ TW0_LAST_CONV_EPOCH = 3
 FULL_LR = 0.2e-4
 FULL_EPOCH = 5
 
+PER_EPOCH_EVALUATION = 10
+
 TRUE_TEXT = np.array([
     1,0,0,1,1,0,1,0,0,1,1,1,1,0,1,0,
     0,1,1,1,1,1,0,1,0,1,1,0,0,1,0,0,
@@ -88,6 +90,7 @@ class AgeClassifier(object):
             augmentation_factor=augmentation_factor,
             batch_size=batch_size,
         )
+        self.batch_size = batch_size
         self.size_train = len(self.train_loader.dataset)
         self.size_test = len(self.test_loader.dataset)
         
@@ -176,7 +179,22 @@ class AgeClassifier(object):
         """
         logger.info('Starting training')
         self.model.train()
+
+        # Batch number for evaluations within the epoch
+        batch_evaluation_indexes = list(np.asarray(
+            np.linspace(0, self.size_train//self.batch_size-1, PER_EPOCH_EVALUATION + 2),
+            int,
+        ))[1:-1]
+
         for batch, (x, y) in enumerate(self.train_loader):
+
+            # Evaluation within the epoch
+            if batch in batch_evaluation_indexes:
+                logger.info(f'Intermediate evaluation during the epoch')
+                self.test(make_prediction=True)
+                logger.info(f'Intermediate evaluation done, going back to training.')
+                self.model.train()
+
             x = x.to(self.device)
             y = y.to(self.device)
 
@@ -436,6 +454,7 @@ class AgeClassifier(object):
 
 
 def main():
+    logger.info(f'Starting classification with USE_VGG={USE_VGG}')
     AgeClassifier().trained_model
 
 if __name__ == '__main__':

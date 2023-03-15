@@ -130,7 +130,7 @@ class CustomizedPath():
 
     @property
     def human_age(self):
-        result = self.data / 'human_age'
+        result = self.data / 'human_age_shared'
 
         if not result.exists() or len(list(result.iterdir())) <= 2:
             raise ValueError('You must download the datasets before running the code. Please refer to the instructions in the README.')
@@ -143,6 +143,14 @@ class CustomizedPath():
 
     @property
     def human_age_y_unlabeled(self):
+        result = self.human_age / 'y_unlabeled_random.csv'
+        if not result.exists():
+            import pandas as pd
+            import numpy as np
+            length = len(list(self.human_age_unlabeled_folder.iterdir()))
+            pd.DataFrame(
+                np.array([list(range(length)), np.random.randint(0,2,length)]).T, columns=['index','labels']
+            ).to_csv(result, index=False)
         return self.human_age / 'y_unlabeled_random.csv'
 
     @property
