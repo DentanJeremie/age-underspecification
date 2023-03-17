@@ -2,6 +2,13 @@
 
 Author: Jérémie Dentan ([jeremie.dentan@polytechnique.org](mailto:jeremie.dentan@polytechnique.org))
 
+## Documentation
+
+This repository contains the implementation of the work of the author for a data competition. For detailed presentation of the competition and the task, please refer to:
+
+- Our technical report, available TO BE COMPLETED
+- Our presentation, available [here](/doc/defense.pdf)
+
 ## Set up
 
 The code provided here is expected to run under **Python 3.9** with the PYTHONPATH set to the root of the project. To do so, you should run the following from the root of the project:
@@ -18,7 +25,7 @@ Before running the code, you should download the data and put the `human_age_sha
 - File `human_age_shared.zip`, that you should unzip, creating the folder `/data/human_age_shared` containing, among others, `y_labeled.csv`: [https://www.icloud.com/iclouddrive/02aZwmJLNKKQ20m3M39txhYjQ#human%5Fage%5Fshared](https://www.icloud.com/iclouddrive/02aZwmJLNKKQ20m3M39txhYjQ#human%5Fage%5Fshared)
 - File `human_hair.zip`, that you should unzip, creating the folder `/data/human_hair` containing, among others, `y_labeled.csv`: [https://www.icloud.com/iclouddrive/069iFOZ6-V6LSCzYGaqiYyoGQ#human%5Fhair](https://www.icloud.com/iclouddrive/069iFOZ6-V6LSCzYGaqiYyoGQ#human%5Fhair)
 
-You can also download the data from command lines, however the datasets are not hosted by the author, so it cannot be guaranteed that the link will remain available. To do so, run the four following commands from the `/data`directory:
+You can also download the data from command lines, however the datasets are not hosted by the author, so it cannot be guaranteed that the link will remain available. To do so, run the four following commands from the `/data` directory:
 
 ```bash
 wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=17pzoXHnPJwxyKaNEF7JdwkkVwW0IotN-' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=17pzoXHnPJwxyKaNEF7JdwkkVwW0IotN-" -O human_age_shared.zip && rm -rf /tmp/cookies.txt

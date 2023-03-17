@@ -13,7 +13,7 @@ from src.utils.pathtools import project
 from src.classifier.models import AgeModelRes, AgeModelVGG
 from src.classifier.text_extractor import TextExtractor
 
-USE_VGG = True
+USE_VGG = False
 
 DEFAULT_MODEL = AgeModelVGG() if USE_VGG else AgeModelRes()
 DEFAULT_LOSS_FN = nn.CrossEntropyLoss()
