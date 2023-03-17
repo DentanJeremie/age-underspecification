@@ -10,7 +10,7 @@ Author: Jérémie Dentan
 
 ## Overview
 
-This repository contains the implementation of the work of the author for a data competition. The goal of this competition is to predict the age Young/Old based on pictures of people, in presence of underspecification. The underspecification comes from the fact that a text is written on the images, wich is sometimes correlated to the true label, and sometimes not.
+This repository contains the implementation of the work of the author for a data competition. The goal of this competition is to predict the age Young/Old based on pictures of people, in the presence of underspecification. The underspecification comes from the fact that a text is written on the images, wich is sometimes correlated to the true label, and sometimes not.
 
 For detailed presentation of the competition and the task, please refer to:
 
