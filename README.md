@@ -3,7 +3,7 @@
 Author: Jérémie Dentan
 
 <p align="center">
-  <img src="doc/figures/teaser.png"
+  <img src="doc/figures/teaser.jpg"
   alt="Teaser"
   width=100%/>
 </p>
