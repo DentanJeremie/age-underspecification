@@ -66,7 +66,7 @@ Using a NVIDIA GeForce RTX 3090 24Go for the GPU computation and a  Intel Xeon W
 
 When using this repository, please cite our technical report:
 
-```
+```bibtex
 @techreport{dentan_using_2023,
 	title = {Using Error Level Analysis to remove Underspecification},
 	author = {Dentan, Jérémie},
