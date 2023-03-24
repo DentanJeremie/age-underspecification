@@ -62,6 +62,20 @@ Using a NVIDIA GeForce RTX 3090 24Go for the GPU computation and a  Intel Xeon W
 - About 20min of prior CPU computation, including the extraction of the text
 - About 2h45 of training when setting `src.classifier.age_classifier.PER_EPOCH_EVALUATION` to 0 to avoid doing predictions within the epochs. If this variable is set to 1, it adds about 5min per epoch.
 
+## Citation
+
+When using this repository, please cite our technical report:
+
+```
+@techreport{dentan_using_2023,
+	title = {Using Error Level Analysis to remove Underspecification},
+	author = {Dentan, Jérémie},
+	month = mar,
+	year = {2023},
+	doi = {10.13140/RG.2.2.25127.21925},
+}
+```
+
 ## License and Disclaimer
 
 You may use this software under the Apache 2.0 License. See LICENSE.
